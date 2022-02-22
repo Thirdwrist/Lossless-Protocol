@@ -54,6 +54,7 @@ contract LosslessControllerV3 is ILssController, Initializable, ContextUpgradeab
         mapping(address => LocksQueue) queue;
     }
 
+    // Locked funds for each LERC-20 Token
     mapping(ILERC20 => TokenLockedFunds) private tokenScopedLockedFunds;
     
     struct ReceiveCheckpoint {
@@ -464,6 +465,7 @@ contract LosslessControllerV3 is ILssController, Initializable, ContextUpgradeab
         LocksQueue storage queue;
         ILERC20 token = ILERC20(msg.sender);
         queue = tokenScopedLockedFunds[token].queue[_account];
+        // last time touched/transacted + timeframe
         require(queue.touchedTimestamp + tokenConfig[token].tokenLockTimeframe <= block.timestamp, "LSS: Transfers limit reached");
         uint256 amountLeft = _amount - _availableAmount;
         ReceiveCheckpoint storage cp = queue.lockedFunds[queue.last];
@@ -480,10 +482,12 @@ contract LosslessControllerV3 is ILssController, Initializable, ContextUpgradeab
     function _evaluateTransfer(address _sender, address _recipient, uint256 _amount) private returns (bool) {
         ILERC20 token = ILERC20(msg.sender);
 
+       // @TODO What are settled tokens 
         uint256 settledAmount = _getAvailableAmount(token, _sender);
         
         TokenConfig storage config = tokenConfig[token];
 
+        // checks that 
         if (_amount > settledAmount) {
             require(config.emergencyMode + config.tokenLockTimeframe < block.timestamp,
                     "LSS: Emergency mode active, cannot transfer unsettled tokens");

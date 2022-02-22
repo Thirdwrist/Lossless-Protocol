@@ -23,6 +23,7 @@ const setupAddresses = async () => {
     maliciousActor1,
     maliciousActor2,
     maliciousActor3,
+    maliciousContractOwner,
     reporter1,
     reporter2,
   ] = await ethers.getSigners();
@@ -62,6 +63,7 @@ const setupAddresses = async () => {
     maliciousActor1,
     maliciousActor2,
     maliciousActor3,
+    maliciousContractOwner,
     reporter1,
     reporter2,
     lerc20InitialHolder,
@@ -85,6 +87,7 @@ const setupEnvironment = async (
   lssPauseAdmin,
   lssInitialHolder,
   lssBackupAdmin,
+  maliciousContractOwner
 ) => {
   const lssTeamVoteIndex = 0;
   const tokenOwnersVoteIndex = 1;
@@ -124,6 +127,8 @@ const setupEnvironment = async (
     losslessControllerV2.address,
     LosslessControllerV3,
   );
+
+  const MaliciousActorContract = await ethers.getContractFactory('MockMaliciousContract');
 
   const StakingToken = await ethers.getContractFactory('LERC20');
 
@@ -168,6 +173,9 @@ const setupEnvironment = async (
       604800, // 7 days
     ],
     { initializer: 'initialize' },
+  );
+  maliciousContract = await MaliciousActorContract.connect(maliciousContractOwner).deploy(
+   lssGovernance.address
   );
 
   await lssGovernance.connect(lssAdmin).setCompensationAmount(2);
@@ -221,6 +229,7 @@ const setupEnvironment = async (
     reportingAmount,
     reportLifetime,
     lssToken,
+    maliciousContract
   };
 };
 

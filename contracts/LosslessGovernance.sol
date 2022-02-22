@@ -15,6 +15,7 @@ import "./Interfaces/ILosslessGovernance.sol";
 /// @notice The governance contract is in charge of handling the voting process over the reports and their resolution
 contract LosslessGovernance is ILssGovernance, Initializable, AccessControlUpgradeable, PausableUpgradeable {
 
+    /// @dev Index for the three arms. This supplied at: reportVotes[_reportId].votes[_voterIndex];
     uint256 override public constant LSS_TEAM_INDEX = 0;
     uint256 override public constant TOKEN_OWNER_INDEX = 1;
     uint256 override public constant COMMITEE_INDEX = 2;
@@ -37,14 +38,14 @@ contract LosslessGovernance is ILssGovernance, Initializable, AccessControlUpgra
         mapping(address => bool) committeeMemberVoted;
         mapping(address => bool) committeeMemberClaimed;
         bool[] committeeVotes;
-        bool[3] votes;
-        bool[3] voted;
-        bool resolved;
+        bool[3] votes; // the three arms resolution : Token Creator, Lossless Company, and Lossless Committee (defaults; false)
+        bool[3] voted; // if the three arms voted (defaults; false)
+        bool resolved;  
         bool resolution;
         bool losslessPayed;
         uint256 amountReported;
     }
-    mapping(uint256 => Vote) public reportVotes;
+    mapping(uint256 => Vote) public reportVotes; // individual indexed report and thier votes
 
     struct ProposedWallet {
         uint16 proposal;
@@ -81,7 +82,7 @@ contract LosslessGovernance is ILssGovernance, Initializable, AccessControlUpgra
         losslessController = _losslessController;
         losslessStaking = _losslessStaking;
         walletDisputePeriod = _walletDisputePeriod;
-        committeeMembersCount = 0;
+        committeeMembersCount = 0; // for now no commitee member needed hense count zero, so this probably means only two arms needed
         _setupRole(DEFAULT_ADMIN_ROLE, losslessController.admin());
     }
 
@@ -158,6 +159,7 @@ contract LosslessGovernance is ILssGovernance, Initializable, AccessControlUpgra
     }
 
     /// @notice This function sets the amount of tokens given to the erroneously reported address
+    /// @dev within 0-100%
     /// @param _amount Percentage to return
     function setCompensationAmount(uint256 _amount) override public onlyLosslessAdmin {
         require(0 <= _amount && _amount <= 100, "LSS: Invalid amount");
@@ -322,7 +324,7 @@ contract LosslessGovernance is ILssGovernance, Initializable, AccessControlUpgra
         }
         
         reportVotes[_reportId].resolved = true;
-        delete reportedAddresses;
+        delete reportedAddresses; /// @notice this deletes the entire reported adresses, why?
 
         emit ReportResolve(_reportId, reportVotes[_reportId].resolution);
     }
@@ -365,7 +367,7 @@ contract LosslessGovernance is ILssGovernance, Initializable, AccessControlUpgra
             losslessController.deactivateEmergency(token);
         }else{
             reportVote.resolution = false;
-            _compensateAddresses(reportedAddresses);
+            _compensateAddresses(reportedAddresses); /// @notice invalid report
         }
     } 
 
@@ -431,10 +433,10 @@ contract LosslessGovernance is ILssGovernance, Initializable, AccessControlUpgra
 
         proposedWallet.wallet = _wallet;
         proposedWallet.timestamp = block.timestamp;
-        proposedWallet.losslessVote = true;
+        proposedWallet.losslessVote = true;  
         proposedWallet.tokenOwnersVote = true;
         proposedWallet.walletAccepted = true;
-
+        /// @notice if only one of lss or tokenowner can call this at a time, why are both votes and walletAccepted set true automatically? 
         emit WalletProposal(_reportId, _wallet);
     }
 
@@ -528,17 +530,14 @@ contract LosslessGovernance is ILssGovernance, Initializable, AccessControlUpgra
 
     /// @notice This lets an erroneously reported account to retrieve compensation
     function retrieveCompensation() override public whenNotPaused {
-        require(!compensation[msg.sender].payed, "LSS: Already retrieved");
-        require(compensation[msg.sender].amount > 0, "LSS: No retribution assigned");
-        
-        compensation[msg.sender].payed = true;
+        require(!isContract(msg.sender), "LSS: This has to be an EOA address");
+        _retrieveCompensation();
 
-        losslessReporting.retrieveCompensation(msg.sender, compensation[msg.sender].amount);
-
-        emit CompensationRetrieval(msg.sender, compensation[msg.sender].amount);
-
-        compensation[msg.sender].amount = 0;
-
+    }
+ /// @notice This lets an erroneously reported smart contract to retrieve compensation
+    function retrieveCompensationContract() override public whenNotPaused{
+        require(isContract(msg.sender), "LSS: This has to be a contract address");
+        _retrieveCompensation();
     }
 
     ///@notice This function verifies is an address belongs to a contract
@@ -593,6 +592,21 @@ contract LosslessGovernance is ILssGovernance, Initializable, AccessControlUpgra
         "LSS: Reward transfer failed");
 
         emit LosslessClaim(reportTokens, _reportId, amountToClaim);
+    }
+
+    /// @notice This a general function that lets an erroneously reported account to retrieve compensation
+    function _retrieveCompensation() private {
+        require(!compensation[msg.sender].payed, "LSS: Already retrieved");
+        require(compensation[msg.sender].amount > 0, "LSS: No retribution assigned");
+        
+        uint256 amount =  compensation[msg.sender].amount;
+        
+        compensation[msg.sender].payed = true;
+        compensation[msg.sender].amount = 0;
+
+        losslessReporting.retrieveCompensation(msg.sender, amount);
+        emit CompensationRetrieval(msg.sender, amount);
+
     }
 
 }
