@@ -595,6 +595,7 @@ contract LosslessGovernance is ILssGovernance, Initializable, AccessControlUpgra
     }
 
     /// @notice This a general function that lets an erroneously reported account to retrieve compensation
+    /// @dev can only be called by this contract
     function _retrieveCompensation() private {
         require(!compensation[msg.sender].payed, "LSS: Already retrieved");
         require(compensation[msg.sender].amount > 0, "LSS: No retribution assigned");

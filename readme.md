@@ -91,3 +91,5 @@ I also took the liberty to update the method body for retrieving compensations t
 <em>Note:</em> It is worth noting that the actual transfer of funds which is performed on `LosslessReport.sol` is achieved using `transfer` function, `transfer` uses a hardcoded gas of  2300 gas. Which frustrates known attacks like reentrance, since reentrance mostly depends on the contract allowing user to forward its desired amount of gas without any limitation on the contract's end. 
 
 ### Testing: 
+
+To test the new function, a mock contract had to be created to mock the external contract which attempts to retrieve compensation. Also a new utility function was created in the util js file to help with the deployment of the mock contract. 
