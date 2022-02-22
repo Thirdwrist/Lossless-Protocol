@@ -22,7 +22,9 @@ describe(scriptName, () => {
       adr.lssRecoveryAdmin,
       adr.lssPauseAdmin,
       adr.lssInitialHolder,
-      adr.lssBackupAdmin);
+      adr.lssBackupAdmin, 
+      adr.maliciousContractOwner
+      );
     lerc20Token = await setupToken(2000000,
       'Random Token',
       'RAND',

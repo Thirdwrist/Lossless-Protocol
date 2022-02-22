@@ -4,11 +4,13 @@
 /* eslint-disable prefer-destructuring */
 const { time, constants } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
+const { ethers } = require('hardhat');
 const path = require('path');
-const { setupAddresses, setupEnvironment, setupToken } = require('../utils');
+const { setupAddresses, setupEnvironment, setupToken, setupMaliciousContract } = require('../utils');
 
 let adr;
 let env;
+let maliciousContract;
 
 const scriptName = path.basename(__filename, '.js');
 
@@ -19,9 +21,9 @@ describe(scriptName, () => {
       adr.lssRecoveryAdmin,
       adr.lssPauseAdmin,
       adr.lssInitialHolder,
-      adr.lssBackupAdmin,
-      adr.maliciousContractOwner
-      );
+      adr.lssBackupAdmin);
+    maliciousContract = await setupMaliciousContract(adr.maliciousContractOwner,
+       env.lssGovernance.address);
     lerc20Token = await setupToken(2000000,
       'Random Token',
       'RAND',
@@ -51,7 +53,7 @@ describe(scriptName, () => {
     await env.lssToken.connect(adr.lssInitialHolder)
       .transfer(adr.reporter1.address, env.stakingAmount * 3);
     await lerc20Token.connect(adr.lerc20InitialHolder).transfer(adr.maliciousActor1.address, 1000);
-    await lerc20Token.connect(adr.lerc20InitialHolder).transfer(env.maliciousContract.address, 1000);
+    await lerc20Token.connect(adr.lerc20InitialHolder).transfer(maliciousContract.address, 1000);
     await lerc20Token.connect(adr.lerc20InitialHolder).transfer(reportedToken.address, 1000);
 
     await env.lssToken.connect(adr.reporter1).approve(env.lssReporting.address, env.stakingAmount * 3);
@@ -65,7 +67,7 @@ describe(scriptName, () => {
     await env.lssReporting.connect(adr.reporter1)
       .report(lerc20Token.address, reportedToken.address);
     await env.lssReporting.connect(adr.reporter1)
-      .report(lerc20Token.address, env.maliciousContract.address);
+      .report(lerc20Token.address, maliciousContract.address);
   });
 
   describe('when everyone votes negatively', () => {
@@ -123,16 +125,16 @@ describe(scriptName, () => {
       ).to.be.equal(false);
 
       await expect(
-        env.maliciousContract.connect(adr.maliciousContractOwner).retrieveCompensation(),
+        maliciousContract.connect(adr.maliciousContractOwner).retrieveCompensation(),
       ).to.emit(env.lssGovernance, 'CompensationRetrieval').withArgs(
-        env.maliciousContract.address,
+        maliciousContract.address,
         20,
       );
 
       const compensationPercentage = await env.lssGovernance.compensationPercentage();
 
       expect(
-        await env.lssToken.balanceOf(env.maliciousContract.address),
+        await env.lssToken.balanceOf(maliciousContract.address),
       ).to.be.equal((env.reportingAmount * compensationPercentage) / 100);
     });
 
@@ -318,7 +320,7 @@ describe(scriptName, () => {
     });
   });
 
-  describe('when erroneusly reported twice', () => {
+  describe('when erroneously reported twice', () => {
     beforeEach(async () => {
       await env.lssGovernance.connect(adr.lssAdmin).losslessVote(1, false);
       await env.lssGovernance.connect(adr.lerc20Admin).tokenOwnersVote(1, false);

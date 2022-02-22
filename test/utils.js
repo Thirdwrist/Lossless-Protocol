@@ -23,9 +23,8 @@ const setupAddresses = async () => {
     maliciousActor1,
     maliciousActor2,
     maliciousActor3,
-    maliciousContractOwner,
     reporter1,
-    reporter2,
+    reporter2
   ] = await ethers.getSigners();
 
   const [
@@ -40,9 +39,11 @@ const setupAddresses = async () => {
     regularUser4,
     regularUser5,
     dexAddress,
+    maliciousContractOwner,
   ] = await ethers.getSigners();
 
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
 
   return {
     lssInitialHolder,
@@ -63,7 +64,6 @@ const setupAddresses = async () => {
     maliciousActor1,
     maliciousActor2,
     maliciousActor3,
-    maliciousContractOwner,
     reporter1,
     reporter2,
     lerc20InitialHolder,
@@ -78,6 +78,7 @@ const setupAddresses = async () => {
     regularUser5,
     dexAddress,
     ZERO_ADDRESS,
+    maliciousContractOwner,
   };
 };
 
@@ -86,8 +87,7 @@ const setupEnvironment = async (
   lssRecoveryAdmin,
   lssPauseAdmin,
   lssInitialHolder,
-  lssBackupAdmin,
-  maliciousContractOwner
+  lssBackupAdmin
 ) => {
   const lssTeamVoteIndex = 0;
   const tokenOwnersVoteIndex = 1;
@@ -127,8 +127,6 @@ const setupEnvironment = async (
     losslessControllerV2.address,
     LosslessControllerV3,
   );
-
-  const MaliciousActorContract = await ethers.getContractFactory('MockMaliciousContract');
 
   const StakingToken = await ethers.getContractFactory('LERC20');
 
@@ -173,9 +171,6 @@ const setupEnvironment = async (
       604800, // 7 days
     ],
     { initializer: 'initialize' },
-  );
-  maliciousContract = await MaliciousActorContract.connect(maliciousContractOwner).deploy(
-   lssGovernance.address
   );
 
   await lssGovernance.connect(lssAdmin).setCompensationAmount(2);
@@ -228,8 +223,7 @@ const setupEnvironment = async (
     stakingAmount,
     reportingAmount,
     reportLifetime,
-    lssToken,
-    maliciousContract
+    lssToken
   };
 };
 
@@ -252,8 +246,23 @@ const setupToken = async (
   return deployedToken;
 };
 
+const setupMaliciousContract = async (
+  maliciousContractOwner, 
+  lssGovernanceAddress
+  ) => {
+  
+  const MaliciousActorContract = await ethers.getContractFactory('MockMaliciousContract');
+  
+  maliciousContract = await MaliciousActorContract.connect(maliciousContractOwner).deploy(
+    lssGovernanceAddress
+  );
+ 
+  return maliciousContract;
+}
+
 module.exports = {
   setupAddresses,
   setupEnvironment,
   setupToken,
+  setupMaliciousContract,
 };
