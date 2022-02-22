@@ -8,10 +8,10 @@ contract MockMaliciousContract {
     ILssGovernance public losslessGovernance;
     address owner;
     
-    constructor(address _loslessGovernance){
+    constructor(address _losslessGovernance){
 
         owner = msg.sender;
-        losslessGovernance = ILssGovernance(_loslessGovernance);
+        losslessGovernance = ILssGovernance(_losslessGovernance);
 
     }
 
@@ -21,6 +21,11 @@ contract MockMaliciousContract {
     {
         require(msg.sender == owner, "Only owner of malicious code can excute");
         losslessGovernance.retrieveCompensationContract();
+    }
+
+    function retrieveCompensationForEOA() public
+    {
+         losslessGovernance.retrieveCompensation();
     }
 
 }

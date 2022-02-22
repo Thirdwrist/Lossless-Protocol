@@ -3,6 +3,7 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable prefer-destructuring */
 const { time, constants } = require('@openzeppelin/test-helpers');
+const balance = require('@openzeppelin/test-helpers/src/balance');
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 const path = require('path');
@@ -93,7 +94,7 @@ describe(scriptName, () => {
       ]);
 
       await env.lssToken.connect(adr.lssInitialHolder)
-        .transfer(adr.staker1.address, env.stakingAmount + env.stakingAmount);
+        .transfer(adr.staker1.address, env.stakingAmount * 2);
       await env.lssToken.connect(adr.lssInitialHolder)
         .transfer(adr.staker2.address, env.stakingAmount * 2);
       await env.lssToken.connect(adr.lssInitialHolder)
@@ -137,6 +138,54 @@ describe(scriptName, () => {
         await env.lssToken.balanceOf(maliciousContract.address),
       ).to.be.equal((env.reportingAmount * compensationPercentage) / 100);
     });
+    it('should fail when reported contract tries to retrieve from EOA method', async () => {
+      await ethers.provider.send('evm_increaseTime', [
+        Number(time.duration.minutes(5)),
+      ]);
+
+      await env.lssToken.connect(adr.lssInitialHolder)
+        .transfer(adr.staker1.address, env.stakingAmount * 2);
+      await env.lssToken.connect(adr.lssInitialHolder)
+        .transfer(adr.staker2.address, env.stakingAmount * 2);
+      await env.lssToken.connect(adr.lssInitialHolder)
+        .transfer(adr.staker3.address, env.stakingAmount * 2);
+
+      await env.lssToken.connect(adr.staker1)
+        .approve(env.lssStaking.address, env.stakingAmount * 2);
+      await env.lssToken.connect(adr.staker2)
+        .approve(env.lssStaking.address, env.stakingAmount * 2);
+      await env.lssToken.connect(adr.staker3)
+        .approve(env.lssStaking.address, env.stakingAmount * 2);
+
+      await ethers.provider.send('evm_increaseTime', [
+        Number(time.duration.minutes(5)),
+      ]);
+
+      await env.lssStaking.connect(adr.staker1).stake(3);
+      await env.lssStaking.connect(adr.staker2).stake(3);
+      await env.lssStaking.connect(adr.staker3).stake(3);
+
+      await env.lssGovernance.connect(adr.lssAdmin).resolveReport(3);
+
+      const balance = await env.lssToken.balanceOf(maliciousContract.address);
+
+      expect(
+        await env.lssGovernance.isReportSolved(3),
+      ).to.be.equal(true);
+
+      expect(
+        await env.lssGovernance.reportResolution(3),
+      ).to.be.equal(false);
+
+      await expect(
+        maliciousContract.connect(adr.maliciousContractOwner).retrieveCompensationForEOA()
+      ).to.be.revertedWith('LSS: This has to be an EOA address');
+
+      expect(
+        await env.lssToken.balanceOf(maliciousContract.address)
+      ).to.be.equal(balance);
+    });
+
 
     it('should let reported address retrieve compensation', async () => {
       await ethers.provider.send('evm_increaseTime', [
@@ -187,6 +236,54 @@ describe(scriptName, () => {
       expect(
         await env.lssToken.balanceOf(adr.maliciousActor1.address),
       ).to.be.equal((env.reportingAmount * compensationPercentage) / 100);
+    });
+    it('should fail when EOA uses contract method to retrieve compensation', async () => {
+      await ethers.provider.send('evm_increaseTime', [
+        Number(time.duration.minutes(5)),
+      ]);
+
+      await env.lssToken.connect(adr.lssInitialHolder)
+        .transfer(adr.staker1.address, env.stakingAmount * 2);
+      await env.lssToken.connect(adr.lssInitialHolder)
+        .transfer(adr.staker2.address, env.stakingAmount * 2);
+      await env.lssToken.connect(adr.lssInitialHolder)
+        .transfer(adr.staker3.address, env.stakingAmount * 2);
+
+      await env.lssToken.connect(adr.staker1)
+        .approve(env.lssStaking.address, env.stakingAmount * 2);
+      await env.lssToken.connect(adr.staker2)
+        .approve(env.lssStaking.address, env.stakingAmount * 2);
+      await env.lssToken.connect(adr.staker3)
+        .approve(env.lssStaking.address, env.stakingAmount * 2);
+
+      await ethers.provider.send('evm_increaseTime', [
+        Number(time.duration.minutes(5)),
+      ]);
+
+      await env.lssStaking.connect(adr.staker1).stake(1);
+      await env.lssStaking.connect(adr.staker2).stake(1);
+      await env.lssStaking.connect(adr.staker3).stake(1);
+
+      await env.lssGovernance.connect(adr.lssAdmin).resolveReport(1);
+
+      const balance = await env.lssToken.balanceOf(adr.maliciousActor1.address);
+
+      expect(
+        await env.lssGovernance.isReportSolved(1),
+      ).to.be.equal(true);
+
+      expect(
+        await env.lssGovernance.reportResolution(1),
+      ).to.be.equal(false);
+
+      await expect(
+        env.lssGovernance.connect(adr.maliciousActor1).retrieveCompensationContract()
+      ).to.be.revertedWith('LSS: This has to be a contract address');
+
+      expect(
+        await env.lssToken.balanceOf(adr.maliciousActor1.address)
+      ).to.be.equal(balance);
+
     });
 
     it('should revert if tries to retrieve twice', async () => {
